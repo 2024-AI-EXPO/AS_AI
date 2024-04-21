@@ -2,12 +2,14 @@ from keras.models import Sequential
 from keras.layers import Dense, Dropout, Input, Flatten
 from keras.initializers import Orthogonal
 from keras.applications.vgg16 import VGG16
-from keras.metrics import AUC
-from keras.metrics import Precision
-from keras.metrics import Recall
+from keras.metrics import AUC, Precision, Recall
+from fastapi import FastAPI
+from fastapi.responses import StreamingResponse
 
 import cv2
 import numpy as np
+
+app = FastAPI()
 
 cap = cv2.VideoCapture(0)
 size = (64, 64)
@@ -20,7 +22,6 @@ labels_dict = {
     'V': 21, 'W': 22, 'X': 23, 'Y': 24, 'Z': 25, 'space': 26, 'del': 27, 'nothing': 28
 }
 result_dict = {labels_dict[i]: i for i in labels_dict}
-
 
 def create_model():
     vgg = Sequential([
@@ -43,12 +44,9 @@ def create_model():
     )
     return vgg
 
-
 model = create_model()
-
-status = model.load_weights('vgg16_model/model_weight.ckpt')
+status = model.load_weights('/Users/yabbi/Desktop/GitHub/AS_AI/vgg16_model/model_weight.ckpt')
 status.expect_partial()
-
 
 def preprocessing(_frame):
     _frame = cv2.resize(_frame, size)
@@ -57,35 +55,38 @@ def preprocessing(_frame):
     return image
 
 
-while cap.isOpened():
-    ret, frame = cap.read()
-    if not ret:
-        print('카메라 오류 발생')
-        break
+def generate_frames(camera):
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
+            print('카메라 오류 발생')
+            break
 
-    pre_image = preprocessing(frame)
-    result = model.predict(pre_image).squeeze()
-    idx = int(np.argmax(result))
-    text = result_dict[idx]
+        pre_image = preprocessing(frame)
+        result = model.predict(pre_image).squeeze()
+        idx = int(np.argmax(result))
+        text = result_dict[idx]
 
-    frame = cv2.resize(frame, dsize=(640, 480), interpolation=cv2.INTER_LINEAR)
-    frame = cv2.flip(frame, 1)
+        frame = cv2.resize(frame, dsize=(900, 720), interpolation=cv2.INTER_LINEAR)
+        frame = cv2.flip(frame, 1)
 
-    cv2.putText(
-        frame,
-        text,
-        org=(540, 320),
-        fontFace=cv2.FONT_HERSHEY_SIMPLEX,
-        fontScale=3,
-        color=(255, 255, 255),
-        thickness=2,
-        lineType=cv2.LINE_AA
-    )
-    cv2.imshow('ASL_Transform', frame)
+        cv2.putText(
+            frame,
+            text,
+            org=(540, 320),
+            fontFace=cv2.FONT_HERSHEY_SIMPLEX,
+            fontScale=3,
+            color=(255, 255, 255),
+            thickness=2,
+            lineType=cv2.LINE_AA
+        )
+        frame_encoded = cv2.imencode('.jpg', frame)[1].tobytes()
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame_encoded + b'\r\n')
 
-    if cv2.waitKey(10) == ord('q'):
-        print('프로그램을 종료합니다.')
-        break
+    cap.release()
+    cv2.destroyAllWindows()
 
-cap.release()
-cv2.destroyAllWindows()
+@app.get("/AI")
+async def stream_frames():
+    return StreamingResponse(generate_frames(cap), media_type="multipart/x-mixed-replace;boundary=frame")

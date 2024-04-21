@@ -2,7 +2,7 @@ import numpy as np
 import os
 import cv2
 from keras.layers import Flatten, Dense, Dropout, Input
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from keras.preprocessing.image import ImageDataGenerator
 from keras.models import Sequential
 from keras.initializers import Orthogonal
 from keras.applications.vgg16 import VGG16
@@ -12,10 +12,10 @@ from keras.utils import to_categorical
 from keras.metrics import AUC
 from keras.metrics import Precision
 from keras.metrics import Recall
-from tensorflow.python.client import device_lib
+# from tensorflow.python.client import device_lib
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-print(device_lib.list_local_devices())
+# os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+# print(device_lib.list_local_devices())
 
 # C:/Users/modeep1/Downloads/archive/asl_alphabet_train/asl_alphabet_train
 # C:/Users/modeep1/Downloads/archive/asl_alphabet_test/asl_alphabet_test
