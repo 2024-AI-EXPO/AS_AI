@@ -5,6 +5,7 @@ from keras.applications.vgg16 import VGG16
 from keras.metrics import AUC, Precision, Recall
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
+import uvicorn
 
 import cv2
 import numpy as np
@@ -131,3 +132,10 @@ def generate_frames(camera):
 @app.get("/AI")
 async def stream_frames():
     return StreamingResponse(generate_frames(cap), media_type="multipart/x-mixed-replace;boundary=frame")
+
+if __name__ == '__main__':
+    uvicorn.run(app ="test:app",
+                host="0.0.0.0",
+                port=4292,
+                reload=False,
+                workers=1)
