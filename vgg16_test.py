@@ -23,6 +23,7 @@ labels_dict = {
 }
 result_dict = {labels_dict[i]: i for i in labels_dict}
 
+
 def create_model():
     vgg = Sequential([
         Input(shape=(size[0], size[1], 3)),
@@ -44,9 +45,11 @@ def create_model():
     )
     return vgg
 
+
 model = create_model()
 status = model.load_weights('/Users/yabbi/Desktop/GitHub/AS_AI/vgg16_model/model_weight.ckpt')
 status.expect_partial()
+
 
 def preprocessing(_frame):
     _frame = cv2.resize(_frame, size)
@@ -56,6 +59,9 @@ def preprocessing(_frame):
 
 
 def generate_frames(camera):
+    time = 0
+    buffer = ''  # 그냥 버퍼
+    sentence = ''  # 문장 만들기
     while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
@@ -70,22 +76,57 @@ def generate_frames(camera):
         frame = cv2.resize(frame, dsize=(900, 720), interpolation=cv2.INTER_LINEAR)
         frame = cv2.flip(frame, 1)
 
+        if time >= 20:
+            if text == 'space':
+                sentence += '_'
+            elif text == 'del':
+                if sentence and sentence[-1] == '_':
+                    sentence = sentence[:-1]
+                sentence = sentence[:-1]
+            elif text != 'nothing':
+                if sentence and sentence[-1] == '_':
+                    sentence = sentence[:-1]
+                    sentence += ' '
+                sentence += text
+            # else:
+            #     sentence = ''
+            time = 0
+
+        if text == buffer:
+            buffer = ''
+            time += 1
+        else:
+            buffer = text
+
         cv2.putText(
             frame,
             text,
-            org=(540, 320),
+            org=(200, 300),
             fontFace=cv2.FONT_HERSHEY_SIMPLEX,
-            fontScale=3,
+            fontScale=2,
             color=(255, 255, 255),
             thickness=2,
             lineType=cv2.LINE_AA
         )
+
+        if sentence:
+            cv2.putText(
+                frame,
+                sentence,
+                org=(50, 450),
+                fontFace=cv2.FONT_HERSHEY_SIMPLEX,
+                fontScale=1,
+                color=(255, 255, 255),
+                thickness=2,
+                lineType=cv2.LINE_AA
+            )
         frame_encoded = cv2.imencode('.jpg', frame)[1].tobytes()
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame_encoded + b'\r\n')
 
     cap.release()
     cv2.destroyAllWindows()
+
 
 @app.get("/AI")
 async def stream_frames():
