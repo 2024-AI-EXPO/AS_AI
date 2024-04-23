@@ -6,7 +6,6 @@ from keras.metrics import AUC, Precision, Recall
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
 import uvicorn
-
 import cv2
 import numpy as np
 
