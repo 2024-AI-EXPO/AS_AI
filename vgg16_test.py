@@ -3,7 +3,7 @@ from keras.layers import Dense, Dropout, Input, Flatten
 from keras.initializers import Orthogonal
 from keras.applications.vgg16 import VGG16
 from keras.metrics import AUC, Precision, Recall
-from fastapi import FastAPI
+from fastapi import FastAPI, BackgroundTasks
 from fastapi.responses import StreamingResponse
 import uvicorn
 import cv2
@@ -129,12 +129,13 @@ def generate_frames(camera):
 
 
 @app.get("/AI")
-async def stream_frames():
+async def stream_frames(backgroundtasks: BackgroundTasks):
+    backgroundtasks.add(cap)
     return StreamingResponse(generate_frames(cap), media_type="multipart/x-mixed-replace;boundary=frame")
 
 if __name__ == '__main__':
-    uvicorn.run(app ="test:app",
+    uvicorn.run(app ="vgg16_test:app",
                 host="0.0.0.0",
-                port=4292,
+                port=5955,
                 reload=False,
                 workers=1)
