@@ -23,6 +23,7 @@ labels_dict = {
 }
 result_dict = {labels_dict[i]: i for i in labels_dict}
 
+on_camera = False
 
 def create_model():
     vgg = Sequential([
@@ -62,7 +63,7 @@ def generate_frames(camera):
     time = 0
     buffer = ''  # 그냥 버퍼
     sentence = ''  # 문장 만들기
-    while cap.isOpened():
+    while camera:
         ret, frame = cap.read()
         if not ret:
             print('카메라 오류 발생')
@@ -128,10 +129,23 @@ def generate_frames(camera):
     cv2.destroyAllWindows()
 
 
+@app.on_event("startup")
+async def start_up():
+    global on_camera
+    on_camera = True
+
+
+@app.on_event("shutdown")
+async def shut_down():
+    global on_camera
+    on_camera =False
+    
+    
+
 @app.get("/AI")
 async def stream_frames(backgroundtasks: BackgroundTasks):
-    backgroundtasks.add(cap)
-    return StreamingResponse(generate_frames(cap), media_type="multipart/x-mixed-replace;boundary=frame")
+    backgroundtasks.add_task(generate_frames, on_camera)
+    return StreamingResponse(generate_frames(on_camera), media_type="multipart/x-mixed-replace;boundary=frame")
 
 if __name__ == '__main__':
     uvicorn.run(app ="vgg16_test:app",
