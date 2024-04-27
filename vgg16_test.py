@@ -25,6 +25,7 @@ result_dict = {labels_dict[i]: i for i in labels_dict}
 
 on_camera = False
 
+
 def create_model():
     vgg = Sequential([
         Input(shape=(size[0], size[1], 3)),
@@ -48,7 +49,7 @@ def create_model():
 
 
 model = create_model()
-status = model.load_weights('/Users/yabbi/Desktop/GitHub/AS_AI/vgg16_model/model_weight.ckpt')
+status = model.load_weights('vgg16_model/model_weight.ckpt')
 status.expect_partial()
 
 
@@ -89,8 +90,8 @@ def generate_frames(camera):
                     sentence = sentence[:-1]
                     sentence += ' '
                 sentence += text
-            # else:
-            #     sentence = ''
+            else:
+                sentence = ''
             time = 0
 
         if text == buffer:
@@ -138,9 +139,8 @@ async def start_up():
 @app.on_event("shutdown")
 async def shut_down():
     global on_camera
-    on_camera =False
-    
-    
+    on_camera = False
+
 
 @app.get("/AI")
 async def stream_frames(backgroundtasks: BackgroundTasks):
@@ -148,8 +148,8 @@ async def stream_frames(backgroundtasks: BackgroundTasks):
     return StreamingResponse(generate_frames(on_camera), media_type="multipart/x-mixed-replace;boundary=frame")
 
 if __name__ == '__main__':
-    uvicorn.run(app ="vgg16_test:app",
-                host="0.0.0.0",
+    uvicorn.run(app="vgg16_test:app",
+                host="127.0.0.1",
                 port=5955,
                 reload=False,
                 workers=1)
