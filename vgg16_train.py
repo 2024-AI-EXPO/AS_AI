@@ -12,75 +12,67 @@ from keras.utils import to_categorical
 from keras.metrics import AUC
 from keras.metrics import Precision
 from keras.metrics import Recall
-# from tensorflow.python.client import device_lib
+from tensorflow.python.client import device_lib
 
-# os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-# print(device_lib.list_local_devices())
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+print(device_lib.list_local_devices())
 
-# C:/Users/modeep1/Downloads/archive/asl_alphabet_train/asl_alphabet_train
-# C:/Users/modeep1/Downloads/archive/asl_alphabet_test/asl_alphabet_test
-train_dir = '/home/modeep3/바탕화면/AI-testv_1/asl_alphabet_train/asl_alphabet_train'
-test_dir = '/home/modeep3/바탕화면/AI-testv_1/asl_alphabet_test/asl_alphabet_test'
-labels_dict = {'A': 0, 'B': 1, 'C': 2, 'D': 3, 'E': 4, 'F': 5, 'G': 6, 'H': 7, 'I': 8, 'J': 9, 'K': 10, 'L': 11,
-               'M': 12,
-               'N': 13, 'O': 14, 'P': 15, 'Q': 16, 'R': 17, 'S': 18, 'T': 19, 'U': 20, 'V': 21, 'W': 22, 'X': 23,
-               'Y': 24,
-               'Z': 25, 'space': 26, 'del': 27, 'nothing': 28}
-size = (64, 64)
+data_index = np.arange(1, 2001)
+np.random.seed(2016)
+np.random.shuffle(data_index)
+
+data_dir = '/home/modeep3/Github/AS_AI/dataset'
+labels_dict = {'A': 0, 'B': 1}
 init = Orthogonal(gain=1.0, seed=None)
-
+size = (224, 224)
 
 def load_train_data():
     train_y = []
     train_x = []
-    print("LOADING DATA FROM : ", end="")
-    for folder in os.listdir(train_dir):
-        print(folder, end=' | ')
-        for image in os.listdir(train_dir + "/" + folder):
-            # read image
-            temp_img = cv2.imread(train_dir + '/' + folder + '/' + image, 0)
-            # resize image
+    # print("LOADING DATA FROM : ", end="")
+    for folder in os.listdir(data_dir):
+        # print(folder, end=' | ')
+        for idx in data_index[:1500]:
+            temp_img = cv2.imread(data_dir + '/' + folder + f'/{folder}_{idx}.jpg', 0)
             temp_img = cv2.resize(temp_img, size)
-            # load converted classes
             train_y.append(labels_dict[folder])
             train_x.append(temp_img)
-    # convert X_train to numpy
+            
+        print(f'{folder} end')
+
     train_x = np.array(train_x)
-    # normalize pixels of X_train
     train_x = train_x.astype('float32')/255.0
-    # convert from 1-channel to 3-channel
     train_x = np.stack((train_x,)*3, axis=-1)
-    # convert Y_train to numpy
     train_y = np.array(train_y)
 
     return train_x, train_y
 
 
 def load_test_data():
-    labels = []
-    test_x = []
-    for image in os.listdir(test_dir):
-        # read image
-        temp_img = cv2.imread(test_dir + '/' + image, 0)
-        # resize image
-        temp_img = cv2.resize(temp_img, size)
-        # load converted classes
-        labels.append(labels_dict[image.split('_')[0]])
-        test_x.append(temp_img)
-    # convert X_test to numpy
-    test_x = np.array(test_x)
-    # normalize pixels of X_test
-    test_x = test_x.astype('float32')/255.0
-    # convert from 1-channel to 3-channel in Gray
-    test_x = np.stack((test_x,)*3, axis=-1)
-    # convert Y_test to numpy
-    test_y = np.array(labels)
+    train_y = []
+    train_x = []
+    # print("LOADING DATA FROM : ", end="")
+    for folder in os.listdir(data_dir):
+        # print(folder, end=' | ')
+        for idx in data_index[1500:]:
+            temp_img = cv2.imread(data_dir + '/' + folder + f'/{folder}_{idx}.jpg', 0)
+            temp_img = cv2.resize(temp_img, size)
+            train_y.append(labels_dict[folder])
+            train_x.append(temp_img)
+            
+        print(f'{folder} end')
 
-    return test_x, test_y
+    train_x = np.array(train_x)
+    train_x = train_x.astype('float32')/255.0
+    train_x = np.stack((train_x,)*3, axis=-1)
+    train_y = np.array(train_y)
+
+    return train_x, train_y
 
 
 X_train, Y_train = load_train_data()
 X_test, Y_test = load_test_data()
+print(X_train.shape, Y_train.shape)
 
 Y_train = to_categorical(Y_train)
 Y_test = to_categorical(Y_test)
@@ -108,7 +100,7 @@ model.add(VGG16(weights='imagenet', include_top=False))
 model.add(Flatten())
 model.add(Dense(420, activation='relu', kernel_initializer=init))
 model.add(Dropout(0.4))
-model.add(Dense(29, activation='softmax', kernel_initializer=init))
+model.add(Dense(2, activation='softmax', kernel_initializer=init))
 
 model.compile(
     optimizer='sgd',
@@ -128,7 +120,7 @@ history = model.fit(
     epochs=100,
     validation_data=(X_test, Y_test),
     callbacks=[
-        ModelCheckpoint('model64.keras', verbose=1, save_best_only=True),
+        ModelCheckpoint('/home/modeep3/Github/AS_AI/test_models/model_weight.ckpt', verbose=1, save_weights_only=True),
         ReduceLROnPlateau(monitor='val_loss', verbose=1, patience=10, mode='auto'),
     ]
 )

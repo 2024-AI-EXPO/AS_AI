@@ -1,24 +1,27 @@
+# 손만 나오게 만들기
+
 import cv2
 import os
 
-train_dir = "dataset/train/A"
-test_dir = "dataset/test/A"
+alphabet = 'B'
 # ls = [i for i in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ']
-# ls.extend(['space', 'del'])
-cap = cv2.VideoCapture(0)
-data_num = 50
+# ls.extend(['space', 'del']
 
-os.makedirs(train_dir, exist_ok=True)
+data_dir = f"dataset/{alphabet}"
+cap = cv2.VideoCapture(0)
+data_num = 2000
+
+os.makedirs(data_dir, exist_ok=True)
 
 for i in range(data_num):
     ret, frame = cap.read()
     if not ret:
         break
-    resizing = cv2.resize(frame, (224, 224))
     flip = cv2.flip(frame, 1)
+    resizing = cv2.resize(flip, (224, 224))
 
     cv2.imshow('frame', flip)
-    cv2.imwrite(train_dir + f'/A_{i+1}.jpg', frame)
+    cv2.imwrite(data_dir + f'/{alphabet}_{i+1}.jpg', resizing)
 
     if cv2.waitKey(30) == ord('q'):
         break

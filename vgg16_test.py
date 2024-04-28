@@ -5,15 +5,16 @@ from keras.applications.vgg16 import VGG16
 from keras.metrics import AUC, Precision, Recall
 from fastapi import FastAPI, BackgroundTasks
 from fastapi.responses import StreamingResponse
+from cvzone.HandTrackingModule import HandDetector
 import uvicorn
 import cv2
 import numpy as np
 
 app = FastAPI()
 
-cap = cv2.VideoCapture(0)
 size = (64, 64)
 init = Orthogonal(gain=1.0, seed=None)
+detector = HandDetector(maxHands=1, detectionCon=0.8)
 
 labels_dict = {
     'A': 0, 'B': 1, 'C': 2, 'D': 3, 'E': 4, 'F': 5, 'G': 6,
@@ -49,9 +50,20 @@ def create_model():
 
 
 model = create_model()
-status = model.load_weights('vgg16_model/model_weight.ckpt')
+status = model.load_weights('/home/modeep3/Github/AS_AI/vgg16_model/model_weight.ckpt')
 status.expect_partial()
 
+def find(frame):
+    img = frame.copy()
+    hand, _ = detector.findHands(img)
+    if hand:
+        box = hand[0]['bbox']
+        x1, y1, x2, y2 = box[0] - 40, box[1] - 40, box[0] + box[2] + 40, box[1] + box[3] + 40
+        if x1 < 0: x1 = 0
+        if y1 < 0: y1 = 0
+        crop = frame[y1:y2, x1:x2]
+        return crop
+    return 
 
 def preprocessing(_frame):
     _frame = cv2.resize(_frame, size)
@@ -61,6 +73,7 @@ def preprocessing(_frame):
 
 
 def generate_frames(camera):
+    cap = cv2.VideoCapture(0)
     time = 0
     buffer = ''  # 그냥 버퍼
     sentence = ''  # 문장 만들기
@@ -69,59 +82,62 @@ def generate_frames(camera):
         if not ret:
             print('카메라 오류 발생')
             break
-
-        pre_image = preprocessing(frame)
-        result = model.predict(pre_image).squeeze()
-        idx = int(np.argmax(result))
-        text = result_dict[idx]
-
+        hand_img = find(frame)
         frame = cv2.resize(frame, dsize=(900, 720), interpolation=cv2.INTER_LINEAR)
         frame = cv2.flip(frame, 1)
+        if hand_img is not None:
 
-        if time >= 20:
-            if text == 'space':
-                sentence += '_'
-            elif text == 'del':
-                if sentence and sentence[-1] == '_':
+            pre_image = preprocessing(hand_img)
+            result = model.predict(pre_image).squeeze()
+            idx = int(np.argmax(result))
+            text = result_dict[idx]
+
+            if time >= 20:
+                if text == 'space':
+                    sentence += '_'
+                elif text == 'del':
+                    while sentence and sentence[-1] == '_':
+                        sentence = sentence[:-1]
                     sentence = sentence[:-1]
-                sentence = sentence[:-1]
-            elif text != 'nothing':
-                if sentence and sentence[-1] == '_':
-                    sentence = sentence[:-1]
-                    sentence += ' '
-                sentence += text
+                else:
+                    l = 0
+                    if sentence and sentence[-1] == '_':
+                        sentence = sentence[:-1]
+                        l += 1
+                    sentence += ' ' * l
+                    sentence += text
+                time = 0
+
+            if text == buffer:
+                buffer = ''
+                time += 1
             else:
-                sentence = ''
-            time = 0
+                buffer = text
 
-        if text == buffer:
-            buffer = ''
-            time += 1
-        else:
-            buffer = text
-
-        cv2.putText(
-            frame,
-            text,
-            org=(200, 300),
-            fontFace=cv2.FONT_HERSHEY_SIMPLEX,
-            fontScale=2,
-            color=(255, 255, 255),
-            thickness=2,
-            lineType=cv2.LINE_AA
-        )
-
-        if sentence:
             cv2.putText(
                 frame,
-                sentence,
-                org=(50, 450),
+                text,
+                org=(200, 300),
                 fontFace=cv2.FONT_HERSHEY_SIMPLEX,
-                fontScale=1,
-                color=(255, 255, 255),
+                fontScale=2,
+                color=(0, 0, 0),
                 thickness=2,
                 lineType=cv2.LINE_AA
             )
+
+            if sentence:
+                cv2.putText(
+                    frame,
+                    sentence,
+                    org=(50, 450),
+                    fontFace=cv2.FONT_HERSHEY_SIMPLEX,
+                    fontScale=1,
+                    color=(0, 255, 0),
+                    thickness=2,
+                    lineType=cv2.LINE_AA
+                )
+        else:
+            sentence = ''
         frame_encoded = cv2.imencode('.jpg', frame)[1].tobytes()
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame_encoded + b'\r\n')
@@ -151,5 +167,5 @@ if __name__ == '__main__':
     uvicorn.run(app="vgg16_test:app",
                 host="127.0.0.1",
                 port=5955,
-                reload=False,
+                reload=True,
                 workers=1)
