@@ -3,14 +3,9 @@ from keras.layers import Dense, Dropout, Input, Flatten
 from keras.initializers import Orthogonal
 from keras.applications.vgg16 import VGG16
 from keras.metrics import AUC, Precision, Recall
-from fastapi import FastAPI, BackgroundTasks
-from fastapi.responses import StreamingResponse
 from cvzone.HandTrackingModule import HandDetector
-import uvicorn
 import cv2
 import numpy as np
-
-app = FastAPI()
 
 cap = cv2.VideoCapture(0)
 size = (64, 64)
@@ -51,17 +46,26 @@ def create_model():
 
 
 model = create_model()
-status = model.load_weights('/home/modeep3/Github/AS_AI/vgg16_model/model_weight.ckpt')
+status = model.load_weights('vgg16_model/model_weight.ckpt')
 status.expect_partial()
+
 
 def find(frame):
     img = frame.copy()
     hand, _ = detector.findHands(img)
     if hand:
         box = hand[0]['bbox']
-        x1, y1, x2, y2 = box[0] - 40, box[1] - 40, box[0] + box[2] + 40, box[1] + box[3] + 40
-        if x1 < 0: x1 = 0
-        if y1 < 0: y1 = 0
+        x1, y1, x2, y2 = box[0] - 70, box[1] - 70, box[0] + box[2] + 70, box[1] + box[3] + 70
+        dis = ((x2 - x1) - (y2 - y1)) // 2
+        if dis < 0:
+            x1, x2 = x1 + dis, x2 - dis
+        else:
+            y1, y2 = y1 - dis, y2 + dis
+
+        if x1 < 0:
+            x1 = 0
+        if y1 < 0:
+            y1 = 0
         crop = frame[y1:y2, x1:x2]
         cv2.imshow('test', crop)
         return crop
@@ -89,7 +93,6 @@ def generate_frames(camera):
         frame = cv2.resize(frame, dsize=(900, 720), interpolation=cv2.INTER_LINEAR)
         frame = cv2.flip(frame, 1)
         if hand_img is not None:
-
             pre_image = preprocessing(hand_img)
             result = model.predict(pre_image).squeeze()
             idx = int(np.argmax(result))
@@ -99,16 +102,14 @@ def generate_frames(camera):
                 if text == 'space':
                     sentence += '_'
                 elif text == 'del':
-                    if sentence and sentence[-1] == '_':
-                        sentence = sentence[:-1]
                     sentence = sentence[:-1]
-                elif text != 'nothing':
-                    if sentence and sentence[-1] == '_':
-                        sentence = sentence[:-1]
-                        sentence += ' '
-                    sentence += text
                 else:
-                    sentence = ''
+                    l = 0
+                    while sentence and sentence[-1] == '_':
+                        sentence = sentence[:-1]
+                        l += 1
+                    sentence += ' ' * l
+                    sentence += text
                 time = 0
 
             if text == buffer:
@@ -143,9 +144,10 @@ def generate_frames(camera):
         else:
             sentence = ''
             cv2.imshow('frame', frame)
-        if cv2.waitKey(30) == ord('q'):
+        if cv2.waitKey(1) == ord('q'):
             break
     cap.release()
     cv2.destroyAllWindows()
+
 
 generate_frames(True)

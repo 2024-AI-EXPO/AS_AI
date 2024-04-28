@@ -53,17 +53,30 @@ model = create_model()
 status = model.load_weights('/home/modeep3/Github/AS_AI/vgg16_model/model_weight.ckpt')
 status.expect_partial()
 
+
 def find(frame):
     img = frame.copy()
     hand, _ = detector.findHands(img)
     if hand:
         box = hand[0]['bbox']
-        x1, y1, x2, y2 = box[0] - 40, box[1] - 40, box[0] + box[2] + 40, box[1] + box[3] + 40
-        if x1 < 0: x1 = 0
-        if y1 < 0: y1 = 0
+        x1, y1, x2, y2 = box[0] - 70, box[1] - 70, box[0] + box[2] + 70, box[1] + box[3] + 70
+        dis = ((x2 - x1) - (y2 - y1)) // 2
+
+        if dis < 0:
+            x1, x2 = x1 + dis, x2 - dis
+        else:
+            y1, y2 = y1 - dis, y2 + dis
+
+        if x1 < 0:
+            x1 = 0
+        if y1 < 0:
+            y1 = 0
+        print(x1, y1, x2, y2)
         crop = frame[y1:y2, x1:x2]
+        cv2.imshow('test', crop)
         return crop
     return 
+
 
 def preprocessing(_frame):
     _frame = cv2.resize(_frame, size)
@@ -96,12 +109,10 @@ def generate_frames(camera):
                 if text == 'space':
                     sentence += '_'
                 elif text == 'del':
-                    while sentence and sentence[-1] == '_':
-                        sentence = sentence[:-1]
                     sentence = sentence[:-1]
                 else:
                     l = 0
-                    if sentence and sentence[-1] == '_':
+                    while sentence and sentence[-1] == '_':
                         sentence = sentence[:-1]
                         l += 1
                     sentence += ' ' * l
